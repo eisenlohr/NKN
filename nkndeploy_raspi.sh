@@ -1,6 +1,6 @@
 #!/bin/bash
 
-while getopts 'hu:p:b:' OPTION; do
+while getopts 'ha:u:p:b:d:w:' OPTION; do
     case "$OPTION" in
         a)
             arch="$OPTARG"
@@ -17,6 +17,9 @@ while getopts 'hu:p:b:' OPTION; do
         d)
             deploy="$OPTARG"
             ;;
+        w)
+            wallet="$OPTARG"
+            ;;
         h*)
             cat << EOM
 Usage: sudo $0 [options]
@@ -29,8 +32,9 @@ Options:
   -a arch    ARM architecture (armv7 or arm64)                 [armv7]
   -u name    name of NKN mining user                           [current user]
   -p secret  password of new NKN mining user                   []
-  -d dir     deployment directory relative to mining user home [nkn-commercial-node]
   -b addr    NKN wallet address for mining rewards
+  -w dir     directory that contains existing wallet.json and wallet.pswd to be used
+  -d dir     deployment directory relative to mining user home [nkn-commercial-node]
   -h         print this help message
 
 EOM
@@ -55,12 +59,12 @@ apt-get install make curl git unzip whois makepasswd ufw -y --allow-downgrades -
 
 if [ "x$user" == "x" ]
 then
-  user=$(whoami)
+    user=$(whoami)
 else
-  echo "adding mining user..."
-  echo "---------------------"
-  useradd -m -p $(mkpasswd "$pwd") -s /bin/bash "$user"
-  adduser "$user" sudo
+    echo "adding mining user..."
+    echo "---------------------"
+    useradd -m -p $(mkpasswd "$pwd") -s /bin/bash "$user"
+    adduser "$user" sudo
 fi
 
 
@@ -86,11 +90,20 @@ echo "-----------------------------------"
 while [[ ! -d "$dply/services/nkn-node/ChainDB" \
       || ! -f "$dply/services/nkn-node/wallet.json" ]]
 do
-  echo -n .
-  sleep 5
+    echo -n .
+    sleep 5
 done
-
 echo
+
+
+if [[ -f "$wallet/wallet.json" && -f "$wallet/wallet.pswd" ]]
+then
+    echo "transferring existing wallet..."
+    echo "-------------------------------"
+    cp "$wallet/wallet.json" "$dply/services/nkn-node/"
+    cp "$wallet/wallet.pswd" "$dply/services/nkn-node/"
+fi
+
 sleep 5 > /dev/null 2>&1
 systemctl stop nkn-commercial.service > /dev/null 2>&1
 sleep 5 > /dev/null 2>&1
